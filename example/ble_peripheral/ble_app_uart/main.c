@@ -620,7 +620,6 @@ static void advertising_init(void)
     init.advdata.include_appearance = false;
     init.advdata.flags              = 0;
     
-    init.srdata.name_type              = BLE_ADVDATA_FULL_NAME;
         
     //adv_interval = 160*100;     
     adv_interval = 160;    
