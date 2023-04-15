@@ -156,9 +156,10 @@ static uint16_t   vbat;
 static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
 
 static uint8_t seq_count;
+static uint16_t vol_16;
 static uint8_t m_beacon_info[31] =                    /**< Information advertised by the Beacon. */
 {  
-    0x01,0x40,0x8c,0x1f,0x0a,0x2f,0x00,0x2f,0x61,0xac,0xcc,0x27,0x45,
+    0x01,0x40,0x8c,0x1f,0x0a,0x00,0x00,0x2f,0x61,0xac,0xcc,0x27,0x45,
     0x67,0xf7,0xdb,0x34,0xc4,0x03,0x8e,0x5c,0x0b,0xaa,0x97,0x30,0x56,0xe6
 };
 
@@ -661,6 +662,20 @@ static void app_advertising_data_update( uint16_t adv_type )
     adv_data_len = APP_BEACON_INFO_LENGTH;
     
     /* Update beacon_info */
+    if(seq_count%4 == 0)
+    {
+        m_beacon_info[1] = 0x20;
+        m_beacon_info[2] = vol_16&0x00ff;
+        m_beacon_info[3] = vol_16>>8;
+        m_beacon_info[4] = 0x00;
+    }
+    else
+    {
+        m_beacon_info[1] = 0x40;
+        m_beacon_info[2] = 0x8c;
+        m_beacon_info[3] = 0x1f;
+        m_beacon_info[4] = 0x0a;
+    }
     m_beacon_info[5] = seq_count;
     seq_count++;
                                               
@@ -985,6 +1000,8 @@ int main(void)
     nrf_delay_ms(2);
     
     vbat = vbat_read_value();
+
+    vol_16=((vbat-487)/5.0/28.0+3.6 - 0.25)*10000;
  
 #if NRFX_CHECK(NRFX_WDT_ENABLED)
     nrfx_wdt_init(&wdt_config, NULL);
@@ -996,15 +1013,15 @@ int main(void)
     
     gap_params_init();
     
-    gatt_init();
+//    gatt_init();
     
     services_init();
     
     advertising_init();
     
-    conn_params_init();
+//    conn_params_init();
 
-    advertising_start();
+//    advertising_start();
     
     app_timer_create(&adv_updata_id, APP_TIMER_MODE_REPEATED, adv_updata_timeout_handle);
     
