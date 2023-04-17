@@ -131,7 +131,7 @@
 #define DEFAULT_UART_AT_CMD_LEN               49
 
 #define CONNECTED_TIMEOUT    APP_TIMER_TICKS(60000) //1min
-#define SYS_RESTART_TIMEOUT  APP_TIMER_TICKS(600000) //10min
+#define SYS_RESTART_TIMEOUT  APP_TIMER_TICKS(20) //20ms
 
 
 
@@ -669,6 +669,8 @@ static void app_advertising_data_update( uint16_t adv_type )
     adv_data_len = APP_BEACON_INFO_LENGTH;
     
     /* Update beacon_info */
+
+    static uint8_t seq_256;
     if(seq_count%4 == 0)
     {
         m_beacon_info[1] = 0x20;
@@ -685,7 +687,14 @@ static void app_advertising_data_update( uint16_t adv_type )
     }
     m_beacon_info[5] = seq_count;
     seq_count++;
-                                              
+
+    if(seq_count == 0)
+    {
+        seq_256++;
+        if(seq_count == 16)
+            app_timer_start(sys_restart_timeout_id, SYS_RESTART_TIMEOUT, NULL);
+    }
+
     sd_ble_gap_adv_stop(m_advertising.adv_handle);
     
     {       
@@ -1034,10 +1043,8 @@ int main(void)
     app_timer_create(&adv_updata_id, APP_TIMER_MODE_SINGLE_SHOT, adv_updata_timeout_handle);
     
     app_timer_create(&sys_restart_timeout_id, APP_TIMER_MODE_SINGLE_SHOT, sys_restart_timeout_handle);
-    
-    app_timer_start(sys_restart_timeout_id, SYS_RESTART_TIMEOUT, NULL);
 
-    app_timer_start(adv_updata_id, APP_TIMER_TICKS(300), NULL);
+    app_timer_start(adv_updata_id, APP_TIMER_TICKS(20), NULL);
     
     for (;;)
     {  
