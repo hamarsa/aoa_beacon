@@ -138,6 +138,10 @@
 #define US2TICKS(US)							((uint32_t)ROUNDED_DIV(                        \
 																	(US) * (uint64_t)APP_TIMER_CLOCK_FREQ,         \
 																	1000000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)))
+
+#define BUTTON_SWITCH 0
+
+static bool adv_on = 1;
 /*!
  * Defines the radio events status
  */
@@ -489,27 +493,13 @@ void bsp_event_handler(bsp_event_t event)
     uint32_t err_code;
     switch (event)
     {
-        case BSP_EVENT_SLEEP:
-            break;
-
-        case BSP_EVENT_DISCONNECT:
-            err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
-            break;
-
-        case BSP_EVENT_WHITELIST_OFF:
-            if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
-            {
-                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
-                if (err_code != NRF_ERROR_INVALID_STATE)
-                {
-                    APP_ERROR_CHECK(err_code);
-                }
-            }
-            break;
+        case BSP_EVENT_KEY_1:
+                adv_on = !adv_on;
+                if(adv_on)
+                    bsp_indication_set(BSP_INDICATE_USER_STATE_0);
+                else
+                    bsp_indication_set(BSP_INDICATE_USER_STATE_1);
+        break;
 
         default:
             break;
@@ -714,7 +704,7 @@ static void app_advertising_data_update( uint16_t adv_type )
         
         ble_advertising_modes_config_set( &m_advertising, &x_config );
         
-        err_code = ble_advertising_advdata_update( &m_advertising, &x_advdata, &x_srdata );
+        err_code = ble_advertising_advdata_update( &m_advertising, &x_advdata, NULL );
         APP_ERROR_CHECK(err_code); 
 
         err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
@@ -977,10 +967,28 @@ static void app_sys_event_handle( void )
     if( app_process_events.events.adv_updata_event )
     {
         app_process_events.events.adv_updata_event = 0;
-        
-        app_advertising_data_update( 1 );
+        if(adv_on)
+            app_advertising_data_update( 1 );
+        else
+        {
+            sd_ble_gap_adv_stop(m_advertising.adv_handle);
+            seq_count = 0;
+		}
     }
 }
+
+static void buttons_init(void)
+{
+
+    bsp_event_t startup_event;
+
+    uint32_t err_code = bsp_init(BSP_INIT_BUTTONS|BSP_INIT_LEDS, bsp_event_handler);
+    APP_ERROR_CHECK(err_code);
+
+    err_code = bsp_event_to_button_action_assign(BUTTON_SWITCH, BSP_BUTTON_ACTION_LONG_PUSH, BSP_EVENT_KEY_1);
+    APP_ERROR_CHECK(err_code);
+}
+
 
 #if NRFX_CHECK(NRFX_WDT_ENABLED)
 nrfx_wdt_config_t wdt_config = NRFX_WDT_DEAFULT_CONFIG;
@@ -1045,6 +1053,8 @@ int main(void)
     app_timer_create(&sys_restart_timeout_id, APP_TIMER_MODE_SINGLE_SHOT, sys_restart_timeout_handle);
 
     app_timer_start(adv_updata_id, APP_TIMER_TICKS(20), NULL);
+	
+	buttons_init();
     
     for (;;)
     {  

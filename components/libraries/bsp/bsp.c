@@ -73,7 +73,7 @@ static void bsp_button_event_handler(uint8_t pin_no, uint8_t button_action);
 static const app_button_cfg_t app_buttons[BUTTONS_NUMBER] =
 {
     #ifdef BSP_BUTTON_0
-    {BSP_BUTTON_0, false, BUTTON_PULL, bsp_button_event_handler},
+    {BSP_BUTTON_0, true, BUTTON_PULL, bsp_button_event_handler},
     #endif // BUTTON_0
 
     #ifdef BSP_BUTTON_1
@@ -399,13 +399,15 @@ static uint32_t bsp_led_indication(bsp_indication_t indicate)
         case BSP_INDICATE_USER_STATE_0:
             leds_off();
             bsp_board_led_on(BSP_LED_INDICATE_USER_LED1);
-            m_stable_state = indicate;
+            app_timer_start(m_bsp_leds_tmr, APP_TIMER_TICKS(500), NULL);            //adv_on
+            m_stable_state = BSP_INDICATE_IDLE;
             break;
 
         case BSP_INDICATE_USER_STATE_1:
             leds_off();
             bsp_board_led_on(BSP_LED_INDICATE_USER_LED2);
-            m_stable_state = indicate;
+            app_timer_start(m_bsp_leds_tmr, APP_TIMER_TICKS(500), NULL);            //adv_off
+            m_stable_state = BSP_INDICATE_IDLE;
             break;
 
         case BSP_INDICATE_USER_STATE_2:
@@ -494,11 +496,6 @@ uint32_t bsp_init(uint32_t type, bsp_event_callback_t callback)
     {
         uint32_t num;
 
-        for (num = 0; ((num < BUTTONS_NUMBER) && (err_code == NRF_SUCCESS)); num++)
-        {
-            err_code = bsp_event_to_button_action_assign(num, BSP_BUTTON_ACTION_PUSH, BSP_EVENT_DEFAULT);
-        }
-
         if (err_code == NRF_SUCCESS)
         {
             err_code = app_button_init((app_button_cfg_t *)app_buttons,
@@ -557,11 +554,6 @@ uint32_t bsp_event_to_button_action_assign(uint32_t button, bsp_button_action_t 
 #if BUTTONS_NUMBER > 0
     if (button < BUTTONS_NUMBER)
     {
-        if (event == BSP_EVENT_DEFAULT)
-        {
-            // Setting default action: BSP_EVENT_KEY_x for PUSH actions, BSP_EVENT_NOTHING for RELEASE and LONG_PUSH actions.
-            event = (action == BSP_BUTTON_ACTION_PUSH) ? (bsp_event_t)(BSP_EVENT_KEY_0 + button) : BSP_EVENT_NOTHING;
-        }
         switch (action)
         {
             case BSP_BUTTON_ACTION_PUSH:
