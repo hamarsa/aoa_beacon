@@ -76,6 +76,8 @@
 #include "ibeaconinf.h"
 #include "crc.h"
 
+#include "stdlib.h"
+
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
 #endif
@@ -131,6 +133,11 @@
 #define CONNECTED_TIMEOUT    APP_TIMER_TICKS(60000) //1min
 #define SYS_RESTART_TIMEOUT  APP_TIMER_TICKS(600000) //10min
 
+
+
+#define US2TICKS(US)							((uint32_t)ROUNDED_DIV(                        \
+																	(US) * (uint64_t)APP_TIMER_CLOCK_FREQ,         \
+																	1000000 * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1)))
 /*!
  * Defines the radio events status
  */
@@ -945,6 +952,7 @@ COMPLETE_PACKET:
 void adv_updata_timeout_handle(void * p_context)
 {
     app_process_events.events.adv_updata_event = 1;
+	app_timer_start(adv_updata_id, APP_TIMER_TICKS(300) + US2TICKS(rand()%10000), NULL);
 }
 
 void sys_restart_timeout_handle(void * p_context)
@@ -1023,7 +1031,7 @@ int main(void)
 
 //    advertising_start();
     
-    app_timer_create(&adv_updata_id, APP_TIMER_MODE_REPEATED, adv_updata_timeout_handle);
+    app_timer_create(&adv_updata_id, APP_TIMER_MODE_SINGLE_SHOT, adv_updata_timeout_handle);
     
     app_timer_create(&sys_restart_timeout_id, APP_TIMER_MODE_SINGLE_SHOT, sys_restart_timeout_handle);
     
